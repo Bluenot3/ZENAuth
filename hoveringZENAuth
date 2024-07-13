@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZENAuth</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            background-size: 400% 400%;
+            animation: gradientAnimation 10s ease infinite;
+        }
+        .container {
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .button {
+            font-size: 24px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 20px 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+        .button:active {
+            transform: translateY(0);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
+        @keyframes gradientAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #status {
+            margin-top: 20px;
+            color: #fff;
+            font-size: 18px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.1/dist/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <button id="connectButton" class="button">ZENAuth</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const connectButton = document.getElementById('connectButton');
+        const statusDiv = document.getElementById('status');
+        let web3, provider;
+
+        connectButton.addEventListener('click', async () => {
+            try {
+                provider = new WalletConnectProvider.default({
+                    infuraId: "YOUR_INFURA_ID_HERE" // Replace with your Infura ID
+                });
+
+                await provider.enable();
+
+                web3 = new Web3(provider);
+                const accounts = await web3.eth.getAccounts();
+
+                if (accounts.length > 0) {
+                    const shortAddress = `${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`;
+                    statusDiv.textContent = `Connected: ${shortAddress}`;
+                    connectButton.textContent = "Disconnect";
+                }
+
+                provider.on("disconnect", (code, reason) => {
+                    console.log(code, reason);
+                    resetConnection();
+                });
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.textContent = "Connection failed. Please try again.";
+            }
+        });
+
+        function resetConnection() {
+            web3 = null;
+            provider = null;
+            statusDiv.textContent = "";
+            connectButton.textContent = "ZENAuth";
+        }
+    </script>
+</body>
+</html>
