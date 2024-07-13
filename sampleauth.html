@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalletConnect 3D Example</title>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #fd79a8;
+            --background-color: #2d3436;
+            --text-color: #dfe6e9;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            perspective: 1000px;
+        }
+        
+        .container {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            transform-style: preserve-3d;
+            transform: rotateX(10deg) rotateY(-20deg);
+            transition: transform 0.5s ease;
+        }
+        
+        .container:hover {
+            transform: rotateX(0deg) rotateY(0deg) scale(1.05);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        #status {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+        
+        #connectButton {
+            background-color: var(--text-color);
+            color: var(--primary-color);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+            transform: translateZ(20px);
+        }
+        
+        #connectButton:hover {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            transform: translateZ(30px) scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container floating">
+        <h1>WalletConnect 3D Example</h1>
+        <p id="status">Page loaded successfully</p>
+        <button id="connectButton">Connect Wallet</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM fully loaded and parsed');
+            document.getElementById('status').textContent = 'JavaScript running';
+            
+            document.getElementById('connectButton').addEventListener('click', async () => {
+                try {
+                    document.getElementById('status').textContent = 'Connecting...';
+                    const response = await fetch('/connect');
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('Connected:', data.session);
+                        document.getElementById('status').textContent = 'Connected successfully';
+                    } else {
+                        console.error('Connection failed:', data.error);
+                        document.getElementById('status').textContent = 'Connection failed';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    document.getElementById('status').textContent = 'Error occurred';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
