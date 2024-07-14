@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="https://zenauth.ai" />
+    <title>ZENAuth - AI Agent Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/near-api-js@2.1.3/dist/near-api-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@here-wallet/connect@1.1.1/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@here-wallet/connect@1.1.1/dist/index.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: #0c0c1e;
+            color: #e0e0e0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FF9800;
+            text-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+        }
+
+        .nav-links {
+            display: none;
+        }
+
+        .menu-toggle {
+            display: block;
+            font-size: 24px;
+            cursor: pointer;
+            color: #FF9800;
+        }
+
+        .sidebar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #1c1c2e, #0c0c1e);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .balance {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #FF9800;
+            text-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+        }
+
+        .token {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .token img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+            width: 100%;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(255, 152, 0, 0.3);
+        }
+
+        .button:hover {
+            background: linear-gradient(135deg, #F57C00, #FF9800);
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #agent-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .agent-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .agent-item:hover {
+            box-shadow: 0 2px 10px rgba(255,152,0,0.2);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .agent-item.active {
+            border-color: #FF9800;
+            box-shadow: 0 0 15px rgba(255,152,0,0.3);
+        }
+
+        #selected-agent-iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        #wallet-connection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #connect-wallet-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+        }
+
+        #connect-wallet-btn:hover {
+            background: linear-gradient(135deg, #45a049, #4CAF50);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #wallet-status {
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        #qrcode-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+
+            .sidebar {
+                width: 300px;
+                border-right: 1px solid rgba(255, 255, 255, 0.1);
+                border-bottom: none;
+            }
+
+            .nav-links {
+                display: block;
+            }
+
+            .nav-links a {
+                color: #e0e0e0;
+                text-decoration: none;
+                margin-right: 20px;
+                transition: color 0.3s;
+            }
+
+            .nav-links a:hover {
+                color: #FF9800;
+            }
+
+            .menu-toggle {
+                display: none;
+            }
+
+            .button {
+                width: auto;
+                margin-right: 10px;
+            }
+
+            #selected-agent-iframe {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">ZENAuth</div>
+        <div class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#stake">Stake</a>
+            <a href="#apps">Apps</a>
+        </div>
+        <div class="menu-toggle">☰</div>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+            <h2>AI Agents</h2>
+            <div id="agent-selector">
+                <!-- Agent items will be dynamically added here -->
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="card" id="wallet-connection">
+                <h2>NEAR Wallet Connection</h2>
+                <button id="connect-wallet-btn">Connect Wallet</button>
+                <div id="wallet-status">Not connected</div>
+                <div id="qrcode-container"></div>
+            </div>
+            <div class="card">
+                <h2>Selected AI Agent</h2>
+                <iframe id="selected-agent-iframe" src=""></iframe>
+            </div>
+            <div class="card">
+                <h2>ZENAuth Balance</h2>
+                <div class="balance">6.22 ZEN</div>
+                <div class="token">
+                    <img src="https://example.com/zen-icon.png" alt="ZEN">
+                    <span>ZEN: 6.22</span>
+                </div>
+                <div class="token">
+                    <img src="https://example.com/usdt-icon.png" alt="USDT">
+                    <span>USDT: 0.4019</span>
+                </div>
+                <button class="button">Buy ZEN</button>
+                <button class="button">Transfer</button>
+            </div>
+            <div class="card">
+                <h2>AI Computation Power</h2>
+                <div class="balance">8.00000 FLOPS</div>
+                <div class="token">
+                    <img src="https://example.com/flops-icon.png" alt="FLOPS">
+                    <span>Available: 8.00000 FLOPS</span>
+                </div>
+                <div class="token">
+                    <img src="https://example.com/storage-icon.png" alt="Storage">
+                    <span>Storage: 0.135000 TB</span>
+                </div>
+                <button class="button">Upgrade Computation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const agents = [
+            {id: "Your_Businesses_Agent_S954L", name: "Business Agent"},
+            {id: "ZENX_HCYZ5", name: "ZenX"},
+            {id: "VisionX_67B29", name: "VisionX"},
+            {id: "Collective_AGI_8RIRC", name: "Collective AGI"},
+            {id: "Visionary_Pixel_Magician_UNL5E", name: "Pixel Magician"},
+            {id: "Claude_35_Sonnet_74WG1", name: "Claude 3.5 Sonnet"},
+            {id: "CCTV_GPT_I2EGT", name: "CCTV GPT"}
+        ];
+
+        const agentSelector = document.getElementById('agent-selector');
+        const selectedAgentIframe = document.getElementById('selected-agent-iframe');
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        const walletStatus = document.getElementById('wallet-status');
+        const qrcodeContainer = document.getElementById('qrcode-container');
+
+        function createAgentSelector() {
+            agents.forEach((agent, index) => {
+                const item = document.createElement('div');
+                item.className = 'agent-item';
+                item.textContent = agent.name;
+                item.addEventListener('click', () => selectAgent(agent.id, item));
+                agentSelector.appendChild(item);
+
+                if (index === 0) {
+                    selectAgent(agent.id, item);
+                }
+            });
+        }
+
+        function selectAgent(id, item) {
+            const agentItems = document.querySelectorAll('.agent-item');
+            agentItems.forEach(ai => ai.classList.remove('active'));
+            item.classList.add('active');
+
+            selectedAgentIframe.src = `https://embed.pickaxeproject.com/axe?id=${id}&mode=embed_gold&host=beta&theme=custom&opacity=100&font_header=Libre+Franklin&size_header=32&font_body=Quicksand&size_body=16&font_labels=Quicksand&size_labels=20&font_button=Quicksand&size_button=16&c_fb=040101&c_ff=01070E&c_fbd=FFFFFF&c_rb=019FEF&c_bb=FFFFFF&c_bt=000000&c_t=FFFFFF&s_ffo=100&s_rbo=100&s_bbo=100&s_f=minimalist&s_b=filled&s_t=0.5&s_to=1&s_r=3`;
+        }
+
+        createAgentSelector();
+
+        // Toggle menu for mobile
+        const menuToggle = document.querySelector('.menu-toggle');
+        const navLinks = document.querySelector('.nav-links');
+        menuToggle.addEventListener('click', () => {
+            navLinks.style.display = navLinks.style.display === 'block' ? 'none' : 'block';
+        });
+
+        // HERE Wallet integration
+        async function initNear() {
+            const near = await nearApi.connect({
+                networkId: "mainnet",
+                walletUrl: "https://web.herewallet.app",
+                nodeUrl: "https://rpc.mainnet.near.org",
+                helperUrl: "https://helper.mainnet.near.org",
+                explorerUrl: "https://explorer.mainnet.near.org",
+                keyStore: new nearApi.keyStores.BrowserLocalStorageKeyStore(),
+            });
+
+            const wallet = new nearApi.WalletConnection(near, "zenauth-app");
+
+            connectWalletBtn.addEventListener('click', async () => {
+                if (!wallet.isSignedIn()) {
+                    const requestSignInUrl = wallet.requestSignIn({
+                        contractId: "zenauth.near", // Replace with your actual contract ID
+                        methodNames: ["stake", "unstake"], // Replace with your actual method names
+                    });
+                    generateQRCode(requestSignInUrl);
+                } else {
+                    await wallet.signOut();
+                    updateWalletStatus(wallet);
+                    qrcodeContainer.innerHTML = '';
+                }
+            });
+
+            updateWalletStatus(wallet);
+        }
+
+        function updateWalletStatus(wallet) {
+            if (wallet.isSignedIn()) {
+                walletStatus.textContent = `Connected: ${wallet.getAccountId()}`;
+                connectWalletBtn.textContent = "Disconnect Wallet";
+                qrcodeContainer.innerHTML = '';
+            } else {
+                walletStatus.textContent
