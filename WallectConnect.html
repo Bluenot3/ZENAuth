@@ -1,0 +1,340 @@
+<html><head><base href="https://zenauth.near-protocol.ai"><title>ZENAuth - 3D Holographic Key Generator</title><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.1/dist/umd/index.min.js"></script><script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script><style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    background-size: 400% 400%;
+    animation: gradientAnimation 10s ease infinite;
+}
+
+.container {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.button {
+    font-size: 24px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    padding: 20px 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    margin: 10px 0;
+}
+
+.button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+}
+
+.button:active {
+    transform: translateY(0);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes gradientAnimation {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+#status {
+    margin-top: 20px;
+    color: #fff;
+    font-size: 18px;
+}
+
+#keyVisualizer {
+    width: 100%;
+    height: 400px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+#keyDisplay {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    word-break: break-all;
+    font-family: 'Poppins', monospace;
+    color: #fff;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.export-options {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#qrCodeContainer {
+    display: none;
+    margin-top: 2rem;
+    text-align: center;
+}
+
+#qrCode {
+    display: inline-block;
+    padding: 1rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    .button {
+        font-size: 18px;
+        padding: 15px 30px;
+    }
+    
+    #keyVisualizer {
+        height: 300px;
+    }
+}
+</style></head><body><div class="container">
+  <h1 style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">ZENAuth 3D Holographic Key Generator</h1>
+  
+  <div id="keyVisualizer"></div>
+  
+  <button id="connectButton" class="button">Connect Wallet</button>
+  
+  <div class="controls">
+    <button class="button" onclick="generateKey('near.org', 'Bitcoin')">Generate NEAR Bitcoin Key</button>
+    <button class="button" onclick="generateKey('near.org', 'Ethereum')">Generate NEAR Ethereum Key</button>
+    <button class="button" onclick="generateKey('near.org', 'BinanceSmartChain')">Generate NEAR BSC Key</button>
+    <button class="button" onclick="generateCustomKey()">Generate Custom Key</button>
+  </div>
+  
+  <div id="keyDisplay"></div>
+  
+  <div class="export-options">
+    <button class="button" onclick="saveAsPNG()">Save as PNG</button>
+    <button class="button" onclick="saveAsPDF()">Save as PDF</button>
+    <button class="button" onclick="generateQRCode()">Generate QR Code</button>
+    <button class="button" onclick="copyKeyToClipboard()">Copy Key</button>
+  </div>
+  
+  <div id="qrCodeContainer">
+    <div id="qrCode"></div>
+  </div>
+  
+  <div id="status"></div>
+</div>
+
+<script>
+let scene, camera, renderer, hologram;
+let generatedKey = '';
+let web3, provider;
+
+const connectButton = document.getElementById('connectButton');
+const statusDiv = document.getElementById('status');
+
+connectButton.addEventListener('click', async () => {
+    if (web3 && provider) {
+        await provider.disconnect();
+        resetConnection();
+    } else {
+        try {
+            provider = new WalletConnectProvider.default({
+                infuraId: "YOUR_INFURA_ID_HERE" // Replace with your Infura ID
+            });
+
+            await provider.enable();
+
+            web3 = new Web3(provider);
+            const accounts = await web3.eth.getAccounts();
+
+            if (accounts.length > 0) {
+                const shortAddress = `${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`;
+                statusDiv.textContent = `Connected: ${shortAddress}`;
+                connectButton.textContent = "Disconnect";
+                generateKey('near.org', 'Ethereum', accounts[0]); // Generate key based on connected account
+            }
+
+            provider.on("disconnect", (code, reason) => {
+                console.log(code, reason);
+                resetConnection();
+            });
+
+        } catch (error) {
+            console.error(error);
+            statusDiv.textContent = "Connection failed. Please try again.";
+        }
+    }
+});
+
+function resetConnection() {
+    web3 = null;
+    provider = null;
+    statusDiv.textContent = "";
+    connectButton.textContent = "Connect Wallet";
+    clearHologram();
+}
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(document.getElementById('keyVisualizer').clientWidth, document.getElementById('keyVisualizer').clientHeight);
+    document.getElementById('keyVisualizer').appendChild(renderer.domElement);
+
+    camera.position.z = 5;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    animate();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    if (hologram) {
+        hologram.rotation.y += 0.005;
+    }
+    renderer.render(scene, camera);
+}
+
+function generateKey(domain, chain, address = 'example.testnet') {
+    const path = { domain, chain };
+    generatedKey = deriveKey(address, path);
+    
+    document.getElementById('keyDisplay').textContent = `Generated Key: ${generatedKey}`;
+    
+    createHologram(generatedKey);
+}
+
+function createHologram(key) {
+    clearHologram();
+
+    const geometry = new THREE.TorusKnotGeometry(1, 0.3, 100, 16);
+    const material = new THREE.ShaderMaterial({
+        uniforms: {
+            time: { value: 1.0 },
+            key: { value: key }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float time;
+            uniform string key;
+            varying vec2 vUv;
+            void main() {
+                vec2 p = -1.0 + 2.0 * vUv;
+                float a = time * 40.0;
+                float d = length(p);
+                vec2 uv = vUv + (p / d) * cos(d * 12.0 - a) * 0.02;
+                vec3 col = 0.5 + 0.5 * cos(time + uv.xyx + vec3(0, 2, 4));
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+
+    hologram = new THREE.Mesh(geometry, material);
+    scene.add(hologram);
+}
+
+function clearHologram() {
+    if (hologram) {
+        scene.remove(hologram);
+        hologram.geometry.dispose();
+        hologram.material.dispose();
+        hologram = undefined;
+    }
+}
+
+function generateCustomKey() {
+    const domain = prompt('Enter custom domain:');
+    const chain = prompt('Enter custom chain:');
+    if (domain && chain) {
+        generateKey(domain, chain);
+    }
+}
+
+function deriveKey(accountName, path) {
+    const canonicalPath = JSON.stringify(path);
+    const derivationString = `${accountName},${canonicalPath}`;
+    return sha256(derivationString);
+}
+
+function sha256(message) {
+    // This is a placeholder. In a real application, use a proper crypto library
+    return Array.from(message).reduce((hash, char) => {
+        return ((hash << 5) - hash) + char.charCodeAt(0) | 0;
+    }, 0).toString(16);
+}
+
+function saveAsPNG() {
+    const dataURL = renderer.domElement.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = 'zenauth_key.png';
+    link.href = dataURL;
+    link.click();
+}
+
+function saveAsPDF() {
+    // This is a placeholder. In a real application, use a PDF generation library
+    alert('PDF generation would be implemented here.');
+}
+
+function generateQRCode() {
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
+    qrCodeContainer.style.display = 'block';
+    const qrCode = new QRCode(document.getElementById('qrCode'), {
+        text: generatedKey,
+        width: 128,
+        height: 128
+    });
+}
+
+function copyKeyToClipboard() {
+    navigator.clipboard.writeText(generatedKey).then(() => {
+        alert('Key copied to clipboard!');
+    });
+}
+
+initThreeJS();
+</script></body></html>
