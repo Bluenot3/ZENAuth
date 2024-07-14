@@ -1,0 +1,201 @@
+import React, { useState, useEffect } from 'react';
+import { sha256 } from 'js-sha256';
+
+// Mock NEAR API functions
+const nearAPI = {
+  connect: () => Promise.resolve({}),
+  WalletConnection: function() {
+    this.isSignedIn = () => true;
+    this.getAccountId = () => 'example.testnet';
+  },
+  Contract: function() {
+    this.signTransaction = (args) => Promise.resolve(`Signed transaction: ${JSON.stringify(args)}`);
+  }
+};
+
+// Key derivation function
+function deriveKey(accountName, path) {
+  const canonicalPath = JSON.stringify(path);
+  const derivationString = `${accountName},${canonicalPath}`;
+  return sha256(derivationString);
+}
+
+// NEAR connection configuration
+const nearConfig = {
+  networkId: 'testnet',
+  nodeUrl: 'https://rpc.testnet.near.org',
+  contractName: 'dev-1623770331543-96054142823795',
+  walletUrl: 'https://wallet.testnet.near.org',
+};
+
+// Chain ID mappings
+const chainIds = {
+  Bitcoin: 0,
+  Ethereum: 60,
+  BinanceSmartChain: 60, // Using Ethereum chain ID for BSC
+};
+
+function ZenAuthRevolutionaryComponent() {
+  const [walletConnection, setWalletConnection] = useState(null);
+  const [accountId, setAccountId] = useState('');
+  const [contract, setContract] = useState(null);
+  const [transactionDetails, setTransactionDetails] = useState(null);
+  const [showWarning, setShowWarning] = useState(false);
+
+  useEffect(() => {
+    async function initNear() {
+      const near = await nearAPI.connect(nearConfig);
+      const walletConnection = new nearAPI.WalletConnection(near);
+      setWalletConnection(walletConnection);
+      setAccountId(walletConnection.getAccountId());
+      setContract(new nearAPI.Contract(walletConnection.account(), nearConfig.contractName, {
+        changeMethods: ['signTransaction'],
+      }));
+    }
+    initNear();
+  }, []);
+
+  const handleTransaction = async (domain, chain, amount, currency, customChainId) => {
+    const txDetails = {
+      domain,
+      chain,
+      amount,
+      currency,
+      customChainId,
+    };
+    setTransactionDetails(txDetails);
+
+    if (domain === 'near.org' && chain === 'Bitcoin') {
+      await signTransaction(txDetails);
+    } else if (chain === 'Bitcoin' || chain === 'BinanceSmartChain') {
+      setShowWarning(false);
+    } else if (domain !== 'near.org' && chain === 'Bitcoin') {
+      setShowWarning(true);
+    }
+  };
+
+  const signTransaction = async (txDetails) => {
+    const { domain, chain, amount, currency, customChainId } = txDetails;
+    const path = customChainId 
+      ? { chain: chainIds[chain], customChainId } 
+      : domain 
+        ? { domain } 
+        : { chain: chainIds[chain] };
+    
+    const key = deriveKey(accountId, path);
+    const result = await contract.signTransaction({ 
+      accountId, 
+      key, 
+      transaction: `Send ${amount} ${currency}` 
+    });
+    console.log(result);
+    setTransactionDetails(null);
+    setShowWarning(false);
+  };
+
+  return (
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>ZENAuth Revolutionary</h1>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => handleTransaction('near.org', 'Bitcoin', 100, 'BTC')} style={buttonStyle}>
+          Sign Bitcoin Transaction (near.org)
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => handleTransaction('near.org', 'Bitcoin', 100, 'BTC')} style={buttonStyle}>
+          Sign Personal Bitcoin Transaction
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => handleTransaction('near.org', 'BinanceSmartChain', 100, 'BNB', 56)} style={buttonStyle}>
+          Sign BSC Transaction (EVM)
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => handleTransaction('near.org', 'Bitcoin', 100, 'BTC', undefined, true)} style={buttonStyle}>
+          Sign with Untyped Domain Key
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => handleTransaction('attacker.com', 'Bitcoin', 100, 'BTC')} style={buttonStyle}>
+          Sign with Another Domain's Key
+        </button>
+      </div>
+
+      {transactionDetails && !showWarning && (
+        <div style={modalStyle}>
+          <h2>{transactionDetails.domain} would like to run the following {transactionDetails.chain} transaction:</h2>
+          <p>Send {transactionDetails.amount} {transactionDetails.currency}</p>
+          <button onClick={() => signTransaction(transactionDetails)} style={acceptButtonStyle}>Accept</button>
+          <button onClick={() => setTransactionDetails(null)} style={rejectButtonStyle}>Reject</button>
+        </div>
+      )}
+
+      {showWarning && (
+        <div style={warningModalStyle}>
+          <h2>Warning: Suspicious Transaction</h2>
+          <p>{transactionDetails.domain} would like to sign a transaction using your credentials from near.org</p>
+          <p>Send {transactionDetails.amount} {transactionDetails.currency}</p>
+          <p>This is a suspicious transaction and likely not one you should accept</p>
+          <button onClick={() => setTransactionDetails(null)} style={rejectButtonStyle}>Reject</button>
+          <button onClick={() => signTransaction(transactionDetails)} style={warningAcceptButtonStyle}>Accept (Are you sure!)</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const buttonStyle = {
+  display: 'block',
+  width: '100%',
+  padding: '10px',
+  backgroundColor: '#0070f3',
+  color: 'white',
+  border: 'none',
+  borderRadius: '5px',
+  cursor: 'pointer',
+};
+
+const modalStyle = {
+  border: '1px solid #ccc',
+  borderRadius: '5px',
+  padding: '20px',
+  backgroundColor: '#f9f9f9',
+};
+
+const warningModalStyle = {
+  ...modalStyle,
+  borderColor: '#ff0000',
+  backgroundColor: '#fff0f0',
+};
+
+const acceptButtonStyle = {
+  backgroundColor: '#4caf50',
+  color: 'white',
+  padding: '10px',
+  border: 'none',
+  borderRadius: '5px',
+  cursor: 'pointer',
+  marginRight: '10px',
+};
+
+const rejectButtonStyle = {
+  backgroundColor: '#f44336',
+  color: 'white',
+  padding: '10px',
+  border: 'none',
+  borderRadius: '5px',
+  cursor: 'pointer',
+};
+
+const warningAcceptButtonStyle = {
+  ...acceptButtonStyle,
+  backgroundColor: '#ff9800',
+};
+
+export default ZenAuthRevolutionaryComponent;
