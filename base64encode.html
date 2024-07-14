@@ -1,0 +1,32 @@
+<script>
+    // ... existing code ...
+
+    async function handleTransactionEnvelope(base64Envelope) {
+        try {
+            // Decode the base64 envelope
+            const decodedEnvelope = atob(base64Envelope);
+            
+            // Process the envelope (this would depend on your specific implementation)
+            const result = await processEnvelope(decodedEnvelope);
+            
+            // Update UI based on the result
+            statusDiv.textContent = `Transaction processed: ${result}`;
+        } catch (error) {
+            console.error("Error processing transaction envelope:", error);
+            statusDiv.textContent = "Error processing transaction. Please try again.";
+        }
+    }
+
+    // Add an input for the TransactionEnvelope
+    const envelopeInput = document.createElement('input');
+    envelopeInput.type = 'text';
+    envelopeInput.placeholder = 'Enter base-64 TransactionEnvelope';
+    document.querySelector('.container').insertBefore(envelopeInput, statusDiv);
+
+    const submitEnvelopeButton = document.createElement('button');
+    submitEnvelopeButton.textContent = 'Submit Transaction';
+    submitEnvelopeButton.addEventListener('click', () => {
+        handleTransactionEnvelope(envelopeInput.value);
+    });
+    document.querySelector('.container').insertBefore(submitEnvelopeButton, statusDiv);
+</script>
