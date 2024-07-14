@@ -1,0 +1,145 @@
+// Global variables and functions
+const React = window.React;
+const useState = React.useState;
+const useEffect = React.useEffect;
+
+// Mocking NEAR API functions
+const nearAPI = {
+  connect: () => Promise.resolve({}),
+  WalletConnection: function() {
+    this.isSignedIn = () => false;
+    this.requestSignIn = () => console.log('Sign in requested');
+    this.signOut = () => console.log('Signed out');
+    this.getAccountId = () => 'example.testnet';
+  },
+  Contract: function() {
+    this.setKey = (args) => console.log('setKey called with', args);
+    this.signTransaction = (args) => Promise.resolve(`Signed transaction: ${JSON.stringify(args)}`);
+  }
+};
+
+// Key derivation function
+function deriveKey(accountName, path) {
+  const canonicalPath = JSON.stringify(path);
+  const derivationString = `${accountName},${canonicalPath}`;
+  return `derived_key_${derivationString}`;  // Simplified for demo
+}
+
+// NEAR connection configuration
+const nearConfig = {
+  networkId: 'testnet',
+  nodeUrl: 'https://rpc.testnet.near.org',
+  contractName: 'dev-1623770331543-96054142823795',
+  walletUrl: 'https://wallet.testnet.near.org',
+};
+
+// Function to initialize NEAR connection
+async function initNear() {
+  const near = await nearAPI.connect(Object.assign({}, nearConfig));
+  window.walletConnection = new nearAPI.WalletConnection(near);
+  window.accountId = window.walletConnection.getAccountId();
+  window.contract = new nearAPI.Contract(window.walletConnection.account(), nearConfig.contractName, {
+    viewMethods: ['getKey'],
+    changeMethods: ['setKey', 'signTransaction'],
+  });
+}
+
+function ZenAuthNearComponent() {
+  const [accountName, setAccountName] = useState('');
+  const [chain, setChain] = useState('');
+  const [domain, setDomain] = useState('');
+  const [derivedKey, setDerivedKey] = useState('');
+  const [txData, setTxData] = useState('');
+  const [signedTx, setSignedTx] = useState('');
+
+  // Initialize NEAR connection
+  useEffect(() => {
+    initNear();
+  }, []);
+
+  const handleSignIn = () => {
+    window.walletConnection.requestSignIn(nearConfig.contractName, 'ZenAuth NEAR Component');
+  };
+
+  const handleSignOut = () => {
+    window.walletConnection.signOut();
+    window.location.reload();
+  };
+
+  const handleDeriveKey = async () => {
+    const path = { chain: parseInt(chain), domain };
+    const key = deriveKey(accountName, path);
+    setDerivedKey(key);
+    if (window.walletConnection.isSignedIn()) {
+      await window.contract.setKey({ accountName, key });
+    }
+  };
+
+  const handleSignTransaction = async () => {
+    if (window.walletConnection.isSignedIn()) {
+      const result = await window.contract.signTransaction({ accountName, chain: parseInt(chain), domain, txData });
+      setSignedTx(result);
+    }
+  };
+
+  return (
+    <div style={{ padding: '1rem', maxWidth: '500px', margin: '0 auto', backgroundColor: 'white', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>ZenAuth NEAR Component</h1>
+      {!window.walletConnection.isSignedIn() ? (
+        <button onClick={handleSignIn} style={{ backgroundColor: '#0070f3', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>
+          Sign In with NEAR
+        </button>
+      ) : (
+        <div>
+          <p style={{ marginBottom: '0.5rem' }}>Signed in as: {window.accountId}</p>
+          <button onClick={handleSignOut} style={{ backgroundColor: '#f44336', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>
+            Sign Out
+          </button>
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="text"
+              placeholder="Account Name"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', borderRadius: '0.25rem', border: '1px solid #ccc' }}
+            />
+            <input
+              type="number"
+              placeholder="Chain ID"
+              value={chain}
+              onChange={(e) => setChain(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', borderRadius: '0.25rem', border: '1px solid #ccc' }}
+            />
+            <input
+              type="text"
+              placeholder="Domain"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', borderRadius: '0.25rem', border: '1px solid #ccc' }}
+            />
+            <button onClick={handleDeriveKey} style={{ backgroundColor: '#4caf50', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>
+              Derive Key
+            </button>
+          </div>
+          {derivedKey && <p style={{ marginBottom: '1rem' }}>Derived Key: {derivedKey}</p>}
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="text"
+              placeholder="Transaction Data"
+              value={txData}
+              onChange={(e) => setTxData(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', borderRadius: '0.25rem', border: '1px solid #ccc' }}
+            />
+            <button onClick={handleSignTransaction} style={{ backgroundColor: '#9c27b0', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>
+              Sign Transaction
+            </button>
+          </div>
+          {signedTx && <p style={{ marginBottom: '1rem' }}>Signed Transaction: {signedTx}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Export the component
+return ZenAuthNearComponent;
